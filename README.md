@@ -10,6 +10,8 @@ Region is `ap-south-1`. The database is `dev-db`, collection `posts`. The player
 
 ## How it fits together
 
+![video-consumer architecture](docs/architecture.jpg)
+
 ```
 S3 upload (object metadata: post_id)
         │
