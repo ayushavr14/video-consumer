@@ -1,3 +1,4 @@
+import "dotenv/config";
 import {
   ReceiveMessageCommand,
   SQSClient,
@@ -5,6 +6,12 @@ import {
 } from "@aws-sdk/client-sqs";
 import { ECSClient, RunTaskCommand } from "@aws-sdk/client-ecs";
 import { HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+const csv = (value) =>
+  (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 // Initialize S3 Client
 const s3Client = new S3Client({ region: "ap-south-1" });
@@ -84,26 +91,20 @@ async function init() {
           // return;
 
           const runTaskCommand = new RunTaskCommand({
-            taskDefinition:
-              "arn:aws:ecs:ap-south-1:861276104732:task-definition/video-transcoder:4",
-            cluster:
-              "arn:aws:ecs:ap-south-1:861276104732:cluster/dev-transcoder",
-            launchType: "FARGATE",
+            taskDefinition: process.env.ECS_TASK_DEFINITION,
+            cluster: process.env.ECS_CLUSTER,
+            launchType: process.env.ECS_LAUNCH_TYPE,
             networkConfiguration: {
               awsvpcConfiguration: {
-                assignPublicIp:"ENABLED",
-                securityGroups: ["sg-08be8886ee9e6b28d"],
-                subnets: [
-                  "subnet-03d2dde7728e7af9e",
-                  "subnet-07062d1e2f737f088",
-                  "subnet-0d05006a227e9ddf2"
-                ],
+                assignPublicIp: process.env.ECS_ASSIGN_PUBLIC_IP,
+                securityGroups: csv(process.env.ECS_SECURITY_GROUPS),
+                subnets: csv(process.env.ECS_SUBNETS),
               },
             },
             overrides: {
               containerOverrides: [
                 {
-                  name: "video-transcode",
+                  name: process.env.ECS_CONTAINER_NAME,
                   environment: [
                     { name: "BUCKET_NAME", value: bucket.name },
                     { name: "KEY", value: key },

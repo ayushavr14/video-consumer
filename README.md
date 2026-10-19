@@ -44,7 +44,7 @@ ECS task: container/  (Node 18 + ffmpeg)
 1. The consumer calls `ReceiveMessage` on `SQS_QUEUE_URL` (`MaxNumberOfMessages: 1`, `WaitTimeSeconds: 15`) and loops forever.
 2. Each body is an S3 event notification. For every record it reads `bucket.name` and `object.key`.
 3. `HeadObject` on that key returns user metadata. The worker uses `post_id`.
-4. `RunTask` starts Fargate task definition `video-transcoder` on cluster `dev-transcoder`, container name `video-transcode`, with public IP enabled. Overrides:
+4. `RunTask` starts the task from the ECS settings in `.env`. The deployed values are task definition `video-transcoder:4` on cluster `dev-transcoder`, container name `video-transcode`, launch type `FARGATE`, and a public IP in security group `sg-08be8886ee9e6b28d` across three subnets. Overrides:
 
    - `BUCKET_NAME` — source bucket
    - `KEY` — source object key
@@ -112,13 +112,7 @@ cp .env.example .env
 node src/index.js
 ```
 
-`dotenv` is listed in `package.json` and is not imported in `src/index.js`, so a `.env` file is not loaded on its own. Either export the variables in the shell, or add this as the first line of `src/index.js`:
-
-```js
-import "dotenv/config";
-```
-
-`package.json` currently runs `node index.js`. The consumer entry file is `src/index.js`.
+`src/index.js` loads `.env` through `dotenv/config`. `package.json` currently runs `node index.js`. The consumer entry file is `src/index.js`.
 
 Build and push the transcoder image, then point the ECS task definition at it:
 
@@ -148,6 +142,13 @@ See `.env.example`.
 | `SQS_CLIENT_SECRET_ACCESS_KEY` | consumer | SQS credentials |
 | `S3_CLIENT_ACCESS_KEY_ID` | consumer and container | ECS client in the consumer; S3 client in the container |
 | `S3_CLIENT_SECRET_ACCESS_KEY` | consumer and container | Same pair as above |
+| `ECS_TASK_DEFINITION` | consumer | Task definition ARN. Example: `arn:aws:ecs:ap-south-1:861276104732:task-definition/video-transcoder:4` |
+| `ECS_CLUSTER` | consumer | Cluster ARN. Example: `arn:aws:ecs:ap-south-1:861276104732:cluster/dev-transcoder` |
+| `ECS_LAUNCH_TYPE` | consumer | `FARGATE` |
+| `ECS_ASSIGN_PUBLIC_IP` | consumer | `ENABLED` so the task can reach S3 and MongoDB without a NAT setup |
+| `ECS_SECURITY_GROUPS` | consumer | Comma-separated security group IDs. Example: `sg-08be8886ee9e6b28d` |
+| `ECS_SUBNETS` | consumer | Comma-separated subnet IDs. Example: `subnet-03d2dde7728e7af9e`, `subnet-07062d1e2f737f088`, `subnet-0d05006a227e9ddf2` |
+| `ECS_CONTAINER_NAME` | consumer | Container name on the task definition. Example: `video-transcode` |
 | `MONGODB_URI` | container (task definition) | Connection string. Database name in code is `dev-db` |
 | `S3_BUCKET_NAME` | container (task definition) | Destination bucket for HLS, thumbnails, and audio |
 | `BUCKET_NAME` | container (task override) | Source bucket from the S3 event |
